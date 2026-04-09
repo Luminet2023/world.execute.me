@@ -186,7 +186,7 @@
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
             z-index: 20; filter: drop-shadow(0 0 20px rgba(255,255,255,0.8));
         }
-        .3d-spam {
+        .spam-3d {
             position: absolute; font-family: var(--font-display); font-weight: 900;
             color: var(--main-red); text-shadow: var(--glow-red);
             white-space: nowrap; pointer-events: none;
@@ -602,7 +602,7 @@
 
         function printGiantFloating(text, color = "cyan") {
             const el = document.createElement('div');
-            el.className = `3d-spam emphasis-${color}`;
+            el.className = `spam-3d emphasis-${color}`;
             el.textContent = text;
             el.style.left = `${Math.random() * 80 + 10}vw`;
             el.style.top = `${Math.random() * 80 + 10}vh`;
@@ -618,7 +618,7 @@
         function startSpamExecution() {
             spamInterval = setInterval(() => {
                 const el = document.createElement('div');
-                el.className = '3d-spam emphasis-red glitch-text';
+                el.className = 'spam-3d emphasis-red glitch-text';
                 el.setAttribute('data-text', 'EXECUTION');
                 el.textContent = 'EXECUTION';
                 
@@ -639,7 +639,7 @@
         }
         function stopSpam() {
             if(spamInterval) clearInterval(spamInterval);
-            document.querySelectorAll('.3d-spam').forEach(el => el.remove());
+            document.querySelectorAll('.spam-3d').forEach(el => el.remove());
         }
 
         /**
