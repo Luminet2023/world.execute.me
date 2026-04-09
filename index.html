@@ -1,9 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="mdui-theme-dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>world.execute(me) // REMASTERED</title>
+    
+    <!-- 引入 MDUI 2 -->
+    <link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css">
+    <script src="https://unpkg.com/mdui@2/mdui.global.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap');
 
@@ -54,7 +59,7 @@
             padding: 3vw 5vw;
             display: flex;
             flex-direction: column;
-            justify-content: flex-end; /* 文字从底部往上顶 */
+            justify-content: flex-end;
         }
 
         /* 文本容器 */
@@ -169,15 +174,17 @@
         .progress-container { width: 100%; height: 20px; border: 1px solid var(--main-cyan); margin-top: 10px; position: relative;}
         .progress-bar { height: 100%; background: var(--main-cyan); width: 0%; box-shadow: var(--glow-cyan); transition: width 2s cubic-bezier(0.1, 0.8, 0.2, 1); }
 
-        /* BSOD 蓝屏 */
-        #bsod-layer {
+        /* 经典的 BSOD 蓝屏 */
+        #bsod-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #0000aa; color: #fff; z-index: 500;
+            background-color: #0000aa; color: #ffffff;
             font-family: 'Lucida Console', monospace;
-            padding: 5vw; display: none; flex-direction: column; justify-content: center;
+            text-shadow: none;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 500; padding: 2em;
         }
-        #bsod-layer.active { display: flex; animation: crtTurnOn 0.5s ease-out; }
-        .bsod-title { background: #fff; color: #0000aa; padding: 2px 10px; align-self: flex-start; margin-bottom: 20px; font-weight: bold;}
+        .bsod-text { font-size: 1.2em; text-align: left; max-width: 900px; line-height: 1.5; }
+        .bsod-dump { font-size: 0.8em; margin-top: 2em; }
 
         /* DOM 特效元素 */
         .emoji-blast {
@@ -190,6 +197,12 @@
             position: absolute; font-family: var(--font-display); font-weight: 900;
             color: var(--main-red); text-shadow: var(--glow-red);
             white-space: nowrap; pointer-events: none;
+        }
+
+        /* 自定义 MDUI 对话框层级 */
+        mdui-dialog {
+            z-index: 2000;
+            font-family: var(--font-term);
         }
 
         /* 动画定义 */
@@ -231,17 +244,22 @@
             80% { clip-path: inset(90% 0 5% 0); } 
             100% { clip-path: inset(50% 0 30% 0); } 
         }
-        @keyframes crtTurnOn {
-            0% { transform: scale(1, 0.001) translate3d(0, 0, 0); filter: brightness(10); }
-            40% { transform: scale(1, 0.001) translate3d(0, 0, 0); filter: brightness(10); }
-            100% { transform: scale(1, 1) translate3d(0, 0, 0); filter: brightness(1); }
-        }
     </style>
 </head>
 <body>
 
+    <!-- 光敏性癫痫警告弹窗 (MDUI 2) -->
+    <mdui-dialog id="warning-dialog" headline="⚠️ 光敏性癫痫警告" close-on-esc="false" close-on-overlay-click="false">
+        本网页体验包含强烈的视觉闪烁、色差特效（Glitch Art）以及高频率变动的图形动画。<br><br>
+        如果您本人或您的家属有<b>光敏性癫痫</b>病史，或对闪烁光线极其敏感，请立即停止体验。<br>
+        在观看过程中如感到头晕、不适，请立即闭上眼睛并关闭此页面。<br><br>
+        您是否了解风险并确认继续执行程序？
+        <mdui-button slot="action" variant="text" id="btn-decline" style="color: var(--main-red);">退出程序</mdui-button>
+        <mdui-button slot="action" variant="filled" id="btn-accept" style="background-color: var(--main-cyan); color: #000;">确认执行</mdui-button>
+    </mdui-dialog>
+
     <!-- 启动画面 -->
-    <div id="start-screen">
+    <div id="start-screen" style="display: none;">
         <h1 class="glitch-text" data-text="world.execute(me);">world.execute(me);</h1>
         <p>[ CLICK TO INITIATE SEQUENCE ]</p>
     </div>
@@ -254,20 +272,6 @@
         <div id="terminal-output"></div>
     </div>
 
-    <!-- 蓝屏层 -->
-    <div id="bsod-layer">
-        <div class="bsod-title">Windows</div>
-        <p>A fatal exception 0E has occurred at 0028:C0011E36 in VXD VMM(01) +<br>
-           00010E36. The current application will be terminated.</p>
-        <br>
-        <p>* Press any key to terminate the current application.</p>
-        <p>* Press CTRL+ALT+DEL again to restart your computer. You will<br>
-           lose any unsaved information in all applications.</p>
-        <br>
-        <p>Exception: ILLEGAL_ARGUMENT_EXCEPTION</p>
-        <p>System halt.</p>
-    </div>
-
     <!-- CRT 遮罩层 -->
     <div class="crt-overlay"></div>
 
@@ -278,14 +282,39 @@
 
     <script>
         /**
+         * MDUI 2 DIALOG SETUP
+         */
+        document.addEventListener("DOMContentLoaded", () => {
+            const dialog = document.getElementById('warning-dialog');
+            const startScreen = document.getElementById('start-screen');
+            const btnAccept = document.getElementById('btn-accept');
+            const btnDecline = document.getElementById('btn-decline');
+
+            // 页面加载完成后弹出警告
+            setTimeout(() => {
+                dialog.open = true;
+            }, 300);
+
+            // 接受后显示原始的启动界面
+            btnAccept.addEventListener('click', () => {
+                dialog.open = false;
+                startScreen.style.display = 'flex';
+            });
+
+            // 拒绝则退回或关闭
+            btnDecline.addEventListener('click', () => {
+                window.location.href = 'about:blank';
+            });
+        });
+
+        /**
          * ENGINE SETUP
          */
         const audio = document.getElementById('bgm');
         const startScreen = document.getElementById('start-screen');
         const terminal = document.getElementById('terminal-output');
-        const bsod = document.getElementById('bsod-layer');
         const canvas = document.getElementById('bg-canvas');
-        const ctx = canvas.getContext('2d', { alpha: false }); // 优化性能
+        const ctx = canvas.getContext('2d', { alpha: false });
         
         let cw = canvas.width = window.innerWidth;
         let ch = canvas.height = window.innerHeight;
@@ -301,6 +330,40 @@
             time: 0,
             frame: 0
         };
+
+        /**
+         * ORIGINAL BSOD IMPLEMENTATION
+         */
+        function showBSOD() {
+            const bsod = document.createElement('div');
+            bsod.id = 'bsod-screen';
+            let dump = 'Dumping physical memory to disk: ';
+            for(let i=0; i<10; i++) dump += Math.floor(Math.random()*10);
+
+            bsod.innerHTML = `
+                <div class="bsod-text">
+                    <p>A problem has been detected and world has been shut down to prevent damage.</p>
+                    <p>ILLEGAL_ARGUMENT_EXCEPTION</p>
+                    <br>
+                    <p>If this is the first time you've seen this stop error screen, restart your simulation. If this screen appears again, follow these steps:</p>
+                    <p>Check to be sure you have adequate connection. If a new component is installed, ask your administrator or manufacturer for any updates you might need.</p>
+                    <br>
+                    <p>Technical Information:</p>
+                    <p>*** STOP: 0x0000004E (0x00000099, 0x00000000, 0x00000000, 0x00000000)</p>
+                    <p class="bsod-dump">${dump}</p>
+                </div>`;
+            document.body.appendChild(bsod);
+        }
+
+        function hideBSOD() {
+            const bsod = document.getElementById('bsod-screen');
+            if(bsod) {
+                bsod.style.transition = 'opacity 0.5s';
+                bsod.style.opacity = '0';
+                setTimeout(() => bsod.remove(), 500);
+            }
+        }
+
 
         /**
          * TIMELINE DATA (精准卡点)
@@ -408,9 +471,9 @@
             { time: 128.6, action: () => printLine("You have made some", { color: 'red' }) },
             { time: 131.2, action: () => { printEmphasis("ILLEGAL ARGUMENTS", "red"); engineState.mode = 'GLITCH'; } },
             
-            // BSOD Trigger
-            { time: 133.5, action: () => { bsod.classList.add('active'); engineState.mode = 'IDLE'; document.body.classList.remove('screen-shake'); } },
-            { time: 147.0, action: () => { bsod.classList.remove('active'); clearTerminal(); } },
+            // BSOD Trigger (使用原版经典样式)
+            { time: 133.5, action: () => { showBSOD(); engineState.mode = 'IDLE'; document.body.classList.remove('screen-shake'); } },
+            { time: 147.0, action: () => { hideBSOD(); clearTerminal(); } },
 
             // EXECUTION SPAM (Climax)
             { time: 147.6, action: () => { engineState.mode = 'SPAM'; startSpamExecution(); shakeScreen(11000); } },
@@ -451,7 +514,7 @@
         let isPlaying = false;
 
         /**
-         * INITIALIZATION & AUDIO LOOP
+         * START AUDIO LOOP
          */
         startScreen.addEventListener('click', () => {
             if(isPlaying) return;
