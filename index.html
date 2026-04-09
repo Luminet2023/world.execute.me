@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-CN" class="mdui-theme-dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>world.execute(me) // REMASTERED</title>
-    
+
     <!-- 引入 MDUI 2 -->
     <link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css">
     <script src="https://unpkg.com/mdui@2/mdui.global.js"></script>
@@ -13,40 +14,49 @@
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap');
 
         :root {
-            --bg-color: #030305;
-            --main-cyan: #00f3ff;
-            --main-pink: #ff00ea;
-            --main-green: #00ff66;
-            --main-red: #ff2a2a;
+            --bg-color: #010803;
+            --main-primary: #00ff41;
+            --main-secondary: #008f11;
+            --main-highlight: #adff2f;
+            --main-red: #ff3333;
             --main-yellow: #ffea00;
-            --text-main: #e0e0e0;
-            
+            --text-main: #b8e0c6;
+
             --font-term: 'Fira Code', 'Share Tech Mono', monospace;
             --font-display: 'Orbitron', sans-serif;
-            
-            --glow-cyan: 0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.5);
-            --glow-pink: 0 0 10px rgba(255, 0, 234, 0.8), 0 0 20px rgba(255, 0, 234, 0.5);
-            --glow-red:  0 0 10px rgba(255, 42, 42, 0.8), 0 0 20px rgba(255, 42, 42, 0.5);
+
+            --glow-primary: 0 0 10px rgba(0, 255, 65, 0.8), 0 0 20px rgba(0, 255, 65, 0.5);
+            --glow-secondary: 0 0 10px rgba(0, 143, 17, 0.8), 0 0 20px rgba(0, 143, 17, 0.5);
+            --glow-highlight: 0 0 10px rgba(173, 255, 47, 0.8), 0 0 20px rgba(173, 255, 47, 0.5);
+            --glow-red: 0 0 10px rgba(255, 51, 51, 0.8), 0 0 20px rgba(255, 51, 51, 0.5);
         }
 
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
-        body, html {
-            margin: 0; padding: 0;
-            width: 100vw; height: 100vh;
-            background-color: var(--bg-color);
-            color: var(--main-cyan);
-            font-family: var(--font-term);
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            /* 强制拦截 MDUI 动态取色引擎对页面背景的污染 */
+            background-color: var(--bg-color) !important;
+            color: var(--main-primary);
             overflow: hidden;
             user-select: none;
             -webkit-font-smoothing: antialiased;
+            transition: background-color 0.8s ease;
         }
 
         /* 背景 Canvas 渲染层 */
         #bg-canvas {
             position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             z-index: 1;
             pointer-events: none;
         }
@@ -55,7 +65,8 @@
         #ui-layer {
             position: relative;
             z-index: 10;
-            width: 100%; height: 100%;
+            width: 100%;
+            height: 100%;
             padding: 3vw 5vw;
             display: flex;
             flex-direction: column;
@@ -65,7 +76,7 @@
         /* 文本容器 */
         #terminal-output {
             max-height: 80vh;
-            overflow-y: hidden;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -74,42 +85,93 @@
         /* CRT 显示器扫描线与曲面滤镜 */
         .crt-overlay {
             position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             z-index: 100;
             pointer-events: none;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 3px, 3px 100%;
-            box-shadow: inset 0 0 10vw rgba(0,0,0,0.9);
+            box-shadow: inset 0 0 10vw rgba(0, 0, 0, 0.9);
         }
+
         .crt-overlay::after {
-            content: " "; display: block; position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
             background: rgba(18, 16, 16, 0.1);
-            opacity: 0; z-index: 2; pointer-events: none;
+            opacity: 0;
+            z-index: 2;
+            pointer-events: none;
             animation: flicker 0.15s infinite;
         }
 
         /* 全局状态切换 */
-        .theme-ac { filter: hue-rotate(90deg) contrast(1.2); }
-        .theme-dc { filter: hue-rotate(-90deg) contrast(1.5); }
-        .theme-blind { filter: blur(8px) brightness(0.4) contrast(2); transition: filter 0.5s; }
-        .theme-time { animation: timeWarp 3s cubic-bezier(0.25, 0.1, 0.25, 1); }
-        .screen-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both infinite; }
+        .theme-ac {
+            filter: hue-rotate(90deg) contrast(1.2);
+        }
+
+        .theme-dc {
+            filter: hue-rotate(-90deg) contrast(1.5);
+        }
+
+        .theme-blind {
+            filter: blur(8px) brightness(0.4) contrast(2);
+            transition: filter 0.5s;
+        }
+
+        .theme-time {
+            animation: timeWarp 3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        .theme-dizzy {
+            animation: dizzyFlash 0.8s cubic-bezier(.36, .07, .19, .97) forwards;
+        }
+
+        .screen-shake {
+            animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both infinite;
+        }
+
+        /* 强制纯黑背景类 */
+        .bg-black {
+            --bg-color: #000000 !important;
+        }
 
         /* 开始按钮 */
         #start-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.9); z-index: 1000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; transition: opacity 1s;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: opacity 1s;
         }
+
         #start-screen h1 {
-            font-family: var(--font-display); font-size: 4rem; color: var(--text-main);
-            text-shadow: var(--glow-cyan); margin-bottom: 20px;
+            font-family: var(--font-display);
+            font-size: 4rem;
+            color: var(--text-main);
+            text-shadow: var(--glow-primary);
+            margin-bottom: 20px;
         }
+
         #start-screen p {
-            font-size: 1.5rem; color: var(--main-pink); animation: pulse 1s infinite alternate;
+            font-size: 1.5rem;
+            color: var(--main-highlight);
+            animation: pulse 1s infinite alternate;
         }
 
         /* 终端打字文本 */
@@ -117,14 +179,25 @@
             font-size: 1.2rem;
             line-height: 1.4;
             color: var(--text-main);
-            text-shadow: 0 0 5px rgba(255,255,255,0.3);
-            display: flex; align-items: flex-start;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: flex-start;
             animation: slideUp 0.3s ease-out forwards;
         }
-        .prompt-symbol { color: var(--main-pink); margin-right: 15px; font-weight: bold; }
+
+        .prompt-symbol {
+            color: var(--main-primary);
+            text-shadow: var(--glow-primary);
+            margin-right: 15px;
+            font-weight: bold;
+        }
+
         .term-cursor {
-            display: inline-block; width: 10px; height: 1.2rem;
-            background-color: var(--main-cyan); margin-left: 5px;
+            display: inline-block;
+            width: 10px;
+            height: 1.2rem;
+            background-color: var(--main-primary);
+            margin-left: 5px;
             animation: blink 1s step-end infinite;
         }
 
@@ -137,66 +210,182 @@
             text-align: center;
             margin: 20px 0;
             letter-spacing: 8px;
-            color: var(--main-cyan);
-            text-shadow: var(--glow-cyan);
+            color: var(--main-primary);
+            text-shadow: var(--glow-primary);
             animation: glitch-anim 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
             position: relative;
         }
-        .emphasis-pink { color: var(--main-pink); text-shadow: var(--glow-pink); }
-        .emphasis-red { color: var(--main-red); text-shadow: var(--glow-red); }
 
-        /* 故障毛刺特效 (Glitch) */
-        .glitch-text::before, .glitch-text::after {
-            content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; opacity: 0.8;
+        .emphasis-highlight {
+            color: var(--main-highlight);
+            text-shadow: var(--glow-highlight);
         }
+
+        .emphasis-primary {
+            color: var(--main-primary);
+            text-shadow: var(--glow-primary);
+        }
+
+        .emphasis-red {
+            color: var(--main-red);
+            text-shadow: var(--glow-red);
+        }
+
+        .emphasis-pink {
+            color: var(--main-pink);
+            text-shadow: var(--glow-pink);
+        }
+
+        /* 渐变粉色与纯黑背景 */
+        .love-phase-1 {
+            --bg-color: #000000 !important;
+            --main-primary: #88ffaa;
+            --text-main: #ccffdd;
+            --glow-primary: 0 0 10px rgba(136, 255, 170, 0.8), 0 0 20px rgba(136, 255, 170, 0.5);
+        }
+
+        .love-phase-2 {
+            --bg-color: #000000 !important;
+            --main-primary: #ff88cc;
+            --text-main: #ffccdd;
+            --glow-primary: 0 0 10px rgba(255, 136, 204, 0.8), 0 0 20px rgba(255, 136, 204, 0.5);
+        }
+
+        .love-phase-3 {
+            --bg-color: #000000 !important;
+            --main-primary: #ff00ea;
+            --text-main: #ffb3e6;
+            --glow-primary: 0 0 10px rgba(255, 0, 234, 0.8), 0 0 20px rgba(255, 0, 234, 0.5);
+            /* 将代码块的高亮颜色在最终阶段全部转为粉色系 */
+            --main-highlight: #ff66cc;
+            --main-secondary: #ff99dd;
+            --main-yellow: #ff33bb;
+        }
+
+        /* 故障毛刺特效 */
+        .glitch-text::before,
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0.8;
+        }
+
         .glitch-text::before {
-            color: #0ff; z-index: -1; transform: translate(-3px, 2px);
+            color: #00ff41;
+            z-index: -1;
+            transform: translate(-3px, 2px);
             animation: glitch-anim-1 0.2s infinite alternate-reverse;
         }
+
         .glitch-text::after {
-            color: #f0f; z-index: -2; transform: translate(3px, -2px);
+            color: #ff3333;
+            z-index: -2;
+            transform: translate(3px, -2px);
             animation: glitch-anim-2 0.3s infinite alternate-reverse;
         }
 
-        /* 代码块与进度条 HUD */
+        /* 代码块与进度条 */
         .hud-box {
-            border: 1px solid var(--main-cyan);
-            background: rgba(0, 243, 255, 0.05);
-            padding: 15px; margin: 15px 0;
-            box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.2);
+            border: 1px solid var(--main-primary);
+            background: rgba(0, 255, 65, 0.05);
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.2);
             font-size: 1.1rem;
             backdrop-filter: blur(4px);
         }
-        .keyword { color: var(--main-pink); }
-        .string { color: var(--main-green); }
-        .func { color: var(--main-yellow); }
-        
-        .progress-container { width: 100%; height: 20px; border: 1px solid var(--main-cyan); margin-top: 10px; position: relative;}
-        .progress-bar { height: 100%; background: var(--main-cyan); width: 0%; box-shadow: var(--glow-cyan); transition: width 2s cubic-bezier(0.1, 0.8, 0.2, 1); }
+
+        .keyword {
+            color: var(--main-highlight);
+        }
+
+        .string {
+            color: var(--main-secondary);
+        }
+
+        .func {
+            color: var(--main-yellow);
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            border: 1px solid var(--main-primary);
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--main-primary);
+            width: 0%;
+            box-shadow: var(--glow-primary);
+            transition: width 2s cubic-bezier(0.1, 0.8, 0.2, 1);
+        }
 
         /* 经典的 BSOD 蓝屏 */
         #bsod-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #0000aa; color: #ffffff;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #0000aa;
+            color: #ffffff;
             font-family: 'Lucida Console', monospace;
             text-shadow: none;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 500; padding: 2em;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 500;
+            padding: 2em;
         }
-        .bsod-text { font-size: 1.2em; text-align: left; max-width: 900px; line-height: 1.5; }
-        .bsod-dump { font-size: 0.8em; margin-top: 2em; }
+
+        .bsod-text {
+            font-size: 1.2em;
+            text-align: left;
+            max-width: 900px;
+            line-height: 1.5;
+        }
+
+        .bsod-dump {
+            font-size: 0.8em;
+            margin-top: 2em;
+        }
 
         /* DOM 特效元素 */
         .emoji-blast {
-            position: absolute; font-size: 5rem;
+            position: absolute;
+            font-size: 5rem;
             transform: translate(-50%, -50%);
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            z-index: 20; filter: drop-shadow(0 0 20px rgba(255,255,255,0.8));
+            z-index: 20;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
         }
+
         .spam-3d {
-            position: absolute; font-family: var(--font-display); font-weight: 900;
-            color: var(--main-red); text-shadow: var(--glow-red);
-            white-space: nowrap; pointer-events: none;
+            position: absolute;
+            font-family: var(--font-display);
+            font-weight: 900;
+            color: var(--main-red);
+            text-shadow: var(--glow-red);
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        /* 经典的复古图标块 (Retro Icon Block) */
+        .retro-icon-block {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px 0 15px 45px;
+            font-size: 4rem;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
         }
 
         /* 自定义 MDUI 对话框层级 */
@@ -205,57 +394,248 @@
             font-family: var(--font-term);
         }
 
+        /* 调试工具栏 */
+        #debug-tools {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1001;
+            display: flex;
+            gap: 8px;
+        }
+
+        .debug-btn {
+            background: rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(4px);
+            color: var(--main-primary) !important;
+            border-color: var(--main-primary) !important;
+        }
+
         /* 动画定义 */
-        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
-        @keyframes pulse { from { opacity: 0.5; transform: scale(0.95); } to { opacity: 1; transform: scale(1.05); } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes popIn { 0% { transform: translate(-50%, -50%) scale(0) rotate(-45deg); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; } }
-        @keyframes shake { 
-            0% { transform: translate(2px, 1px) rotate(0deg); } 
-            10% { transform: translate(-1px, -2px) rotate(-1deg); } 
-            20% { transform: translate(-3px, 0px) rotate(1deg); } 
-            30% { transform: translate(0px, 2px) rotate(0deg); } 
-            40% { transform: translate(1px, -1px) rotate(1deg); } 
-            50% { transform: translate(-1px, 2px) rotate(-1deg); } 
-            60% { transform: translate(-3px, 1px) rotate(0deg); } 
-            70% { transform: translate(2px, 1px) rotate(-1deg); } 
-            80% { transform: translate(-1px, -1px) rotate(1deg); } 
-            90% { transform: translate(2px, 2px) rotate(0deg); } 
-            100% { transform: translate(1px, -2px) rotate(-1deg); } 
+        @keyframes blink {
+
+            0%,
+            49% {
+                opacity: 1;
+            }
+
+            50%,
+            100% {
+                opacity: 0;
+            }
         }
-        @keyframes timeWarp { 
-            0% { filter: hue-rotate(0deg) scale(1); } 
-            50% { filter: hue-rotate(180deg) scale(1.1) invert(0.8) contrast(2); } 
-            100% { filter: hue-rotate(360deg) scale(1); } 
+
+        @keyframes pulse {
+            from {
+                opacity: 0.5;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1.05);
+            }
         }
-        @keyframes glitch-anim-1 { 
-            0% { clip-path: inset(20% 0 80% 0); } 
-            20% { clip-path: inset(60% 0 10% 0); } 
-            40% { clip-path: inset(40% 0 50% 0); } 
-            60% { clip-path: inset(80% 0 5% 0); } 
-            80% { clip-path: inset(10% 0 70% 0); } 
-            100% { clip-path: inset(30% 0 50% 0); } 
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        @keyframes glitch-anim-2 { 
-            0% { clip-path: inset(10% 0 60% 0); } 
-            20% { clip-path: inset(30% 0 20% 0); } 
-            40% { clip-path: inset(70% 0 10% 0); } 
-            60% { clip-path: inset(20% 0 50% 0); } 
-            80% { clip-path: inset(90% 0 5% 0); } 
-            100% { clip-path: inset(50% 0 30% 0); } 
+
+        @keyframes popIn {
+            0% {
+                transform: translate(-50%, -50%) scale(0) rotate(-45deg);
+                opacity: 0;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        @keyframes dizzyFlash {
+            0% {
+                filter: blur(0px) contrast(1);
+                transform: scale(1);
+            }
+
+            25% {
+                filter: blur(12px) contrast(1.5) brightness(1.2);
+                transform: scale(1.05) skewX(3deg);
+            }
+
+            50% {
+                filter: blur(0px) contrast(1);
+                transform: scale(1);
+            }
+
+            75% {
+                filter: blur(15px) contrast(2) brightness(1.5);
+                transform: scale(1.08) skewX(-3deg);
+            }
+
+            100% {
+                filter: blur(0px) contrast(1);
+                transform: scale(1);
+            }
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translate(2px, 1px) rotate(0deg);
+            }
+
+            10% {
+                transform: translate(-1px, -2px) rotate(-1deg);
+            }
+
+            20% {
+                transform: translate(-3px, 0px) rotate(1deg);
+            }
+
+            30% {
+                transform: translate(0px, 2px) rotate(0deg);
+            }
+
+            40% {
+                transform: translate(1px, -1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(-1px, 2px) rotate(-1deg);
+            }
+
+            60% {
+                transform: translate(-3px, 1px) rotate(0deg);
+            }
+
+            70% {
+                transform: translate(2px, 1px) rotate(-1deg);
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(2px, 2px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(1px, -2px) rotate(-1deg);
+            }
+        }
+
+        @keyframes timeWarp {
+            0% {
+                filter: hue-rotate(0deg) scale(1);
+            }
+
+            50% {
+                filter: hue-rotate(180deg) scale(1.1) invert(0.8) contrast(2);
+            }
+
+            100% {
+                filter: hue-rotate(360deg) scale(1);
+            }
+        }
+
+        @keyframes glitch-anim-1 {
+            0% {
+                clip-path: inset(20% 0 80% 0);
+            }
+
+            20% {
+                clip-path: inset(60% 0 10% 0);
+            }
+
+            40% {
+                clip-path: inset(40% 0 50% 0);
+            }
+
+            60% {
+                clip-path: inset(80% 0 5% 0);
+            }
+
+            80% {
+                clip-path: inset(10% 0 70% 0);
+            }
+
+            100% {
+                clip-path: inset(30% 0 50% 0);
+            }
+        }
+
+        @keyframes glitch-anim-2 {
+            0% {
+                clip-path: inset(10% 0 60% 0);
+            }
+
+            20% {
+                clip-path: inset(30% 0 20% 0);
+            }
+
+            40% {
+                clip-path: inset(70% 0 10% 0);
+            }
+
+            60% {
+                clip-path: inset(20% 0 50% 0);
+            }
+
+            80% {
+                clip-path: inset(90% 0 5% 0);
+            }
+
+            100% {
+                clip-path: inset(50% 0 30% 0);
+            }
         }
     </style>
 </head>
+
 <body>
 
-    <!-- 光敏性癫痫警告弹窗 (MDUI 2) -->
+    <!-- 调试工具栏 -->
+    <div id="debug-tools">
+        <mdui-button variant="outlined" id="btn-pause-toggle" class="debug-btn"
+            style="color: var(--main-pink); border-color: var(--main-pink);">PAUSE</mdui-button>
+    </div>
+
+    <!-- 调试：时间调整弹窗 -->
+    <mdui-dialog id="debug-dialog" headline="🛠️ DEBUG: 时间轴跳转">
+        <div style="padding: 20px 0;">
+            <mdui-slider id="time-slider" min="0" max="210" step="0.1" value="0"></mdui-slider>
+            <div style="text-align: center; margin-top: 15px; font-size: 1.2rem; color: var(--main-primary);">
+                TARGET TIME: <span id="time-display">0.0</span> s
+            </div>
+            <div style="text-align: center; margin-top: 5px; font-size: 0.9rem; color: var(--text-main); opacity: 0.7;">
+                (建议跳转如 29.7, 43.5, 74.0, 147.6 等卡点)
+            </div>
+        </div>
+        <mdui-button slot="action" variant="text" id="btn-debug-cancel"
+            style="color: var(--text-main);">取消</mdui-button>
+        <mdui-button slot="action" variant="filled" id="btn-debug-confirm"
+            style="background-color: var(--main-primary); color: #000;">执行跳转</mdui-button>
+    </mdui-dialog>
+
+    <!-- 光敏性癫痫警告弹窗 -->
     <mdui-dialog id="warning-dialog" headline="⚠️ 光敏性癫痫警告" close-on-esc="false" close-on-overlay-click="false">
         本网页体验包含强烈的视觉闪烁、色差特效（Glitch Art）以及高频率变动的图形动画。<br><br>
         如果您本人或您的家属有<b>光敏性癫痫</b>病史，或对闪烁光线极其敏感，请立即停止体验。<br>
         在观看过程中如感到头晕、不适，请立即闭上眼睛并关闭此页面。<br><br>
         您是否了解风险并确认继续执行程序？
         <mdui-button slot="action" variant="text" id="btn-decline" style="color: var(--main-red);">退出程序</mdui-button>
-        <mdui-button slot="action" variant="filled" id="btn-accept" style="background-color: var(--main-cyan); color: #000;">确认执行</mdui-button>
+        <mdui-button slot="action" variant="filled" id="btn-accept"
+            style="background-color: var(--main-primary); color: #000;">确认执行</mdui-button>
     </mdui-dialog>
 
     <!-- 启动画面 -->
@@ -281,6 +661,10 @@
     </audio>
 
     <script>
+        // 全局控制变量
+        let doomSpamInterval = null;
+        let flashInt = null;
+
         /**
          * MDUI 2 DIALOG SETUP
          */
@@ -290,20 +674,128 @@
             const btnAccept = document.getElementById('btn-accept');
             const btnDecline = document.getElementById('btn-decline');
 
-            // 页面加载完成后弹出警告
-            setTimeout(() => {
-                dialog.open = true;
-            }, 300);
+            customElements.whenDefined('mdui-dialog').then(() => {
+                setTimeout(() => {
+                    dialog.open = true;
+                }, 300);
+            });
 
-            // 接受后显示原始的启动界面
             btnAccept.addEventListener('click', () => {
                 dialog.open = false;
                 startScreen.style.display = 'flex';
             });
 
-            // 拒绝则退回或关闭
             btnDecline.addEventListener('click', () => {
                 window.location.href = 'about:blank';
+            });
+        });
+
+        /**
+         * DEBUG TIME JUMP & PAUSE SETUP
+         */
+        document.addEventListener("DOMContentLoaded", () => {
+            const btnDebugOpen = document.getElementById('btn-debug-open');
+            const debugDialog = document.getElementById('debug-dialog');
+            const timeSlider = document.getElementById('time-slider');
+            const timeDisplay = document.getElementById('time-display');
+            const btnDebugCancel = document.getElementById('btn-debug-cancel');
+            const btnDebugConfirm = document.getElementById('btn-debug-confirm');
+            const btnPauseToggle = document.getElementById('btn-pause-toggle');
+
+            btnPauseToggle.addEventListener('click', () => {
+                if (isPlaying) {
+                    audio.pause();
+                    isPlaying = false;
+                    btnPauseToggle.innerHTML = 'PLAY';
+                } else if (audio.currentTime > 0 && !audio.ended) {
+                    audio.play();
+                    isPlaying = true;
+                    btnPauseToggle.innerHTML = 'PAUSE';
+                    requestAnimationFrame(mainLoop);
+                }
+            });
+
+            btnDebugOpen.addEventListener('click', () => {
+                const maxTime = audio.duration && !isNaN(audio.duration) ? audio.duration : 210;
+                timeSlider.max = maxTime;
+                timeSlider.value = audio.currentTime;
+                timeDisplay.innerText = audio.currentTime.toFixed(1);
+                debugDialog.open = true;
+            });
+
+            timeSlider.addEventListener('input', (e) => {
+                timeDisplay.innerText = parseFloat(e.target.value).toFixed(1);
+            });
+
+            btnDebugCancel.addEventListener('click', () => {
+                debugDialog.open = false;
+            });
+
+            btnDebugConfirm.addEventListener('click', () => {
+                const t = parseFloat(timeSlider.value);
+
+                audio.currentTime = t;
+
+                currentIndex = 0;
+                while (currentIndex < timeline.length && timeline[currentIndex].time <= t) {
+                    currentIndex++;
+                }
+
+                clearTerminal();
+
+                if (doomSpamInterval) clearInterval(doomSpamInterval);
+                if (flashInt) clearInterval(flashInt);
+
+                document.body.className = '';
+                document.body.style.filter = 'none';
+                engineState.mode = 'IDLE';
+                geoState.step = '';
+
+                // 修复跳转背景同步逻辑
+                if (t >= 88.5 && t < 177.2) {
+                    document.body.classList.add('bg-black');
+                }
+
+                if (t >= 16.0 && t < 29.5) { engineState.mode = 'RAIN'; if (drops.length === 0) initMatrixRain(); }
+                else if (t >= 29.7 && t < 44.4) {
+                    engineState.mode = 'GEOMETRY';
+                    if (t >= 43.5) geoState.step = 'LIMITS';
+                    else if (t >= 40.0) geoState.step = 'TANGENTS';
+                    else if (t >= 37.0) geoState.step = 'SINE';
+                    else if (t >= 33.4) geoState.step = 'CIRCLE';
+                    else geoState.step = 'POINTS';
+                }
+                else if (t >= 56.9 && t < 74.0) { engineState.mode = 'UNITE'; }
+                else if (t >= 74.0 && t < 85.0) { engineState.mode = 'PARTICLES'; }
+                else if (t >= 85.0 && t < 87.9) { engineState.mode = 'LIGHTNING'; }
+                else if (t >= 131.2 && t < 133.5) { engineState.mode = 'GLITCH'; }
+                else if (t >= 177.2 && t < 188.4) {
+                    engineState.mode = 'BLACKOUT';
+                    if (t >= 187.6) engineState.mode = 'HEART';
+
+                    if (t >= 184.5) document.body.className = 'love-phase-3';
+                    else if (t >= 180.8) document.body.className = 'love-phase-2';
+                    else document.body.className = 'love-phase-1';
+                }
+                else if (t >= 188.4) {
+                    document.body.className = 'love-phase-3';
+                    if (t >= 205.8) engineState.mode = 'GLITCH';
+                }
+
+                hideBSOD();
+                stopSpam();
+                document.querySelectorAll('.spam-3d, .emoji-blast, #final-execution-text').forEach(el => el.remove());
+
+                printLine(`>>> DEBUG: JUMPED TO ${t.toFixed(1)}s`, { color: 'yellow' });
+
+                debugDialog.open = false;
+
+                if (!isPlaying && audio.currentTime > 0) {
+                    audio.play();
+                    isPlaying = true;
+                    btnPauseToggle.innerHTML = 'PAUSE';
+                    requestAnimationFrame(mainLoop);
+                }
             });
         });
 
@@ -315,30 +807,26 @@
         const terminal = document.getElementById('terminal-output');
         const canvas = document.getElementById('bg-canvas');
         const ctx = canvas.getContext('2d', { alpha: false });
-        
+
         let cw = canvas.width = window.innerWidth;
         let ch = canvas.height = window.innerHeight;
-        
+
         window.addEventListener('resize', () => {
             cw = canvas.width = window.innerWidth;
             ch = canvas.height = window.innerHeight;
         });
 
-        // 全局状态机
         let engineState = {
-            mode: 'IDLE', // IDLE, RAIN, GEOMETRY, PARTICLES, HEART
+            mode: 'IDLE',
             time: 0,
             frame: 0
         };
 
-        /**
-         * ORIGINAL BSOD IMPLEMENTATION
-         */
         function showBSOD() {
             const bsod = document.createElement('div');
             bsod.id = 'bsod-screen';
             let dump = 'Dumping physical memory to disk: ';
-            for(let i=0; i<10; i++) dump += Math.floor(Math.random()*10);
+            for (let i = 0; i < 10; i++) dump += Math.floor(Math.random() * 10);
 
             bsod.innerHTML = `
                 <div class="bsod-text">
@@ -357,7 +845,7 @@
 
         function hideBSOD() {
             const bsod = document.getElementById('bsod-screen');
-            if(bsod) {
+            if (bsod) {
                 bsod.style.transition = 'opacity 0.5s';
                 bsod.style.opacity = '0';
                 setTimeout(() => bsod.remove(), 500);
@@ -369,89 +857,86 @@
          * TIMELINE DATA (精准卡点)
          */
         const timeline = [
-            { time: 0.1,  action: () => printLine("Switch on the power line", { glitch: true }), canvas: 'LIGHTNING' },
-            { time: 1.7,  action: () => printLine("Remember to put on") },
-            { time: 2.9,  action: () => printEmphasis("PROTECTION", "cyan"), canvas: 'SHIELD' },
-            { time: 3.8,  action: () => printLine("Lay down your pieces") },
-            { time: 5.4,  action: () => printLine("And let's begin") },
-            { time: 6.3,  action: () => printCodeSnippet() },
-            { time: 7.4,  action: () => printLine("Fill in my data parameters") },
+            { time: 0.1, action: () => printLine("Switch on the power line", { glitch: true }), canvas: 'LIGHTNING' },
+            { time: 1.7, action: () => printLine("Remember to put on") },
+            { time: 2.9, action: () => printEmphasis("PROTECTION", "primary"), canvas: 'SHIELD' },
+            { time: 3.8, action: () => printLine("Lay down your pieces") },
+            { time: 5.4, action: () => printLine("And let's begin") },
+            { time: 6.3, action: () => printCodeSnippet() },
+            { time: 7.4, action: () => printLine("Fill in my data parameters") },
             { time: 10.0, action: () => printHUDProgress() },
             { time: 11.0, action: () => printLine("Set up our new world") },
             { time: 12.9, action: () => printLine("And let's begin the") },
-            { time: 13.8, action: () => printEmphasis("SIMULATION", "pink") },
-            
-            // Interlude: Matrix Rain
-            { time: 16.0, action: () => { clearTerminal(); engineState.mode = 'RAIN'; initMatrixRain(); } },
+            { time: 13.8, action: () => printEmphasis("SIMULATION", "highlight") },
+
+            { time: 16.0, action: () => { engineState.mode = 'RAIN'; initMatrixRain(); } },
             { time: 29.5, action: () => { clearTerminal(); engineState.mode = 'IDLE'; } },
 
-            // Geometry Section
             { time: 29.7, action: () => { printLine("If I'm a set of points"); engineState.mode = 'GEOMETRY'; geoState.step = 'POINTS'; } },
             { time: 31.1, action: () => printLine("Then I will give you my") },
-            { time: 32.6, action: () => printEmphasis("DIMENSION", "cyan") },
+            { time: 32.6, action: () => printEmphasis("DIMENSION", "primary") },
             { time: 33.4, action: () => { printLine("If I'm a circle"); geoState.step = 'CIRCLE'; } },
             { time: 34.6, action: () => printLine("Then I will give you my") },
-            { time: 36.2, action: () => printEmphasis("CIRCUMFERENCE", "cyan") },
+            { time: 36.2, action: () => printEmphasis("CIRCUMFERENCE", "primary") },
             { time: 37.0, action: () => { printLine("If I'm a sine wave"); geoState.step = 'SINE'; geoState.sinePhase = 0; } },
             { time: 38.5, action: () => printLine("Then you can sit on all my") },
-            { time: 40.0, action: () => { printEmphasis("TANGENTS", "pink"); geoState.step = 'TANGENTS'; } },
+            { time: 40.0, action: () => { printEmphasis("TANGENTS", "highlight"); geoState.step = 'TANGENTS'; } },
             { time: 40.7, action: () => printLine("If I approach infinity") },
             { time: 42.3, action: () => printLine("Then you can be my") },
             { time: 43.5, action: () => { printEmphasis("LIMITATIONS", "red"); geoState.step = 'LIMITS'; shakeScreen(500); } },
 
-            // Theme shifts
             { time: 44.4, action: () => { clearTerminal(); printLine("Switch my current"); engineState.mode = 'IDLE'; } },
-            { time: 45.8, action: () => { printLine("To AC, to DC"); toggleClass(document.body, 'theme-ac', 800); setTimeout(()=>toggleClass(document.body, 'theme-dc', 800), 800); } },
+            { time: 45.8, action: () => { printLine("To AC, to DC"); toggleClass(document.body, 'theme-ac', 800); setTimeout(() => toggleClass(document.body, 'theme-dc', 800), 800); } },
             { time: 47.6, action: () => printLine("And then blind my vision") },
             { time: 49.5, action: () => toggleClass(document.body, 'theme-blind', 2000) },
-            { time: 50.0, action: () => printLine("So dizzy, so dizzy") },
-            
+
+            { time: 50.0, action: () => { printLine("So dizzy, so dizzy"); toggleClass(document.body, 'theme-dizzy', 800); } },
+
             { time: 51.3, action: () => printLine("Oh we can travel") },
-            { time: 53.2, action: () => { printLine("To A.D to B.C"); toggleClass(document.body, 'theme-time', 3000); } },
+            { time: 53.2, action: () => { printLine("To A.D to B.C"); printTimelineTravel(); toggleClass(document.body, 'theme-time', 3000); } },
             { time: 55.0, action: () => printLine("And we can unite") },
             { time: 56.9, action: () => { printLine("So deeply, so deeply"); engineState.mode = 'UNITE'; } },
 
             { time: 58.0, action: () => clearTerminal() },
-            
+
             { time: 59.2, action: () => printLine("If I can, If I can give you all the") },
-            { time: 61.9, action: () => printEmphasis("STIMULATIONS", "cyan") },
+            { time: 61.9, action: () => printEmphasis("STIMULATIONS", "primary") },
             { time: 62.5, action: () => printLine("Then I can, Then I can be your only") },
-            { time: 65.3, action: () => printEmphasis("SATISFACTION", "pink") },
+            { time: 65.3, action: () => printEmphasis("SATISFACTION", "highlight") },
             { time: 66.6, action: () => printLine("If I can make you happy") },
             { time: 68.2, action: () => printLine("I will run the") },
-            { time: 69.2, action: () => printEmphasis("EXECUTION", "cyan") },
+            { time: 69.2, action: () => printEmphasis("EXECUTION", "primary") },
             { time: 70.0, action: () => printLine("Though we are trapped") },
             { time: 71.7, action: () => printLine("In this strange strange") },
-            { time: 73.1, action: () => printEmphasis("SIMULATION", "cyan") },
+            { time: 73.1, action: () => printEmphasis("SIMULATION", "primary") },
 
-            // Entities & Particles
-            { time: 74.0, action: () => { clearTerminal(); printLine("If I'm an eggplant"); spawnEmoji('🍆'); engineState.mode = 'PARTICLES'; spawnParticles(cw/2, ch/2, '#aa00ff'); } },
+            { time: 74.0, action: () => { clearTerminal(); printLine("If I'm an eggplant"); spawnEmoji('🍆'); engineState.mode = 'PARTICLES'; spawnParticles(cw / 2, ch / 2, '#8800ff'); } },
             { time: 75.4, action: () => printLine("Then I will give you my") },
-            { time: 76.9, action: () => printEmphasis("NUTRIENTS", "cyan") },
-            { time: 77.5, action: () => { printLine("If I'm a tomato"); spawnEmoji('🍅'); spawnParticles(cw/2, ch/2, '#ff2a2a'); } },
+            { time: 76.9, action: () => printEmphasis("NUTRIENTS", "primary") },
+            { time: 77.5, action: () => { printLine("If I'm a tomato"); spawnEmoji('🍅'); spawnParticles(cw / 2, ch / 2, '#ff3333'); } },
             { time: 79.2, action: () => printLine("Then I will give you") },
-            { time: 80.6, action: () => printEmphasis("ANTIOXIDANTS", "cyan") },
+            { time: 80.6, action: () => printEmphasis("ANTIOXIDANTS", "primary") },
             { time: 81.3, action: () => { printLine("If I'm a tabby cat"); spawnEmoji('🐱'); spawnSoundWaves(); } },
             { time: 82.8, action: () => printLine("Then I will purr for your") },
-            { time: 84.2, action: () => printEmphasis("ENJOYMENT", "pink") },
+            { time: 84.2, action: () => printEmphasis("ENJOYMENT", "highlight") },
             { time: 85.0, action: () => { printLine("If I'm the only god"); spawnEmoji('⚡'); engineState.mode = 'LIGHTNING'; } },
             { time: 86.5, action: () => printLine("Then you're the proof of my") },
-            { time: 87.9, action: () => { printEmphasis("EXISTENCE", "cyan"); engineState.mode = 'IDLE'; } },
+            { time: 87.9, action: () => { printEmphasis("EXISTENCE", "primary"); engineState.mode = 'IDLE'; } },
 
-            { time: 88.5, action: () => { clearTerminal(); printLine("Switch my gender"); } },
-            { time: 90.1, action: () => { printLine("To F, to M"); printGiantFloating('♀ ♂'); } },
+            { time: 88.5, action: () => { clearTerminal(); document.body.classList.add('bg-black'); printLine("Switch my gender"); printGenderSwitch(); } },
+            { time: 90.1, action: () => { printLine("To F, to M"); } },
             { time: 92.0, action: () => printLine("And then do whatever") },
-            { time: 93.9, action: () => { printLine("From AM to PM"); printGiantFloating('AM PM'); } },
+            { time: 93.9, action: () => { printLine("From AM to PM"); printTimeCycle(); } },
             { time: 95.4, action: () => printLine("Oh switch my role") },
-            { time: 97.7, action: () => { printLine("To S, to M"); printGiantFloating('S M', 'red'); } },
+            { time: 97.7, action: () => { printLine("To S, to M"); printRoleSwitch(); } },
             { time: 99.3, action: () => printLine("So we can enter") },
-            { time: 101.4, action: () => printLine("The trance, the trance") },
+            { time: 101.4, action: () => { printLine("The trance, the trance"); printEmphasis("TRANCE", "highlight"); engineState.mode = 'GLITCH'; setTimeout(() => engineState.mode = 'IDLE', 1000); } },
 
             { time: 102.5, action: () => clearTerminal() },
             { time: 103.4, action: () => printLine("If I can, If I can feel your") },
-            { time: 106.2, action: () => { printEmphasis("VIBRATIONS", "pink"); shakeScreen(1000); } },
+            { time: 106.2, action: () => { printEmphasis("VIBRATIONS", "highlight"); shakeScreen(1000); } },
             { time: 107.2, action: () => printLine("Then I can, Then I can finally be") },
-            { time: 110.2, action: () => printEmphasis("COMPLETION", "cyan") },
+            { time: 110.2, action: () => printEmphasis("COMPLETION", "primary") },
 
             { time: 110.9, action: () => { clearTerminal(); printLine("Though you have left..."); } },
             { time: 112.2, action: () => printLine("You have left...") },
@@ -466,24 +951,21 @@
             { time: 121.7, action: () => printLine("Then maybe, Then maybe you won't leave me so") },
             { time: 124.8, action: () => printEmphasis("DISHEARTENED", "red") },
 
-            // BSOD Build-up
             { time: 125.7, action: () => { clearTerminal(); toggleClass(document.body, 'screen-shake', 10000); printLine("Challenging your god...", { color: 'red' }); } },
             { time: 128.6, action: () => printLine("You have made some", { color: 'red' }) },
             { time: 131.2, action: () => { printEmphasis("ILLEGAL ARGUMENTS", "red"); engineState.mode = 'GLITCH'; } },
-            
-            // BSOD Trigger (使用原版经典样式)
+
             { time: 133.5, action: () => { showBSOD(); engineState.mode = 'IDLE'; document.body.classList.remove('screen-shake'); } },
             { time: 147.0, action: () => { hideBSOD(); clearTerminal(); } },
 
-            // EXECUTION SPAM (Climax)
             { time: 147.6, action: () => { engineState.mode = 'SPAM'; startSpamExecution(); shakeScreen(11000); } },
-            
-            { time: 158.9, action: () => { stopSpam(); printGiantFloating("EIN", "cyan"); } },
-            { time: 159.3, action: () => printGiantFloating("DOS", "pink") },
-            { time: 159.6, action: () => printGiantFloating("TROIS", "cyan") },
-            { time: 160.2, action: () => printGiantFloating("NE", "pink") },
-            { time: 160.6, action: () => printGiantFloating("FEM", "cyan") },
-            { time: 161.1, action: () => printGiantFloating("LIU", "pink") },
+
+            { time: 158.9, action: () => { stopSpam(); printGiantFloating("EIN", "primary"); } },
+            { time: 159.3, action: () => printGiantFloating("DOS", "highlight") },
+            { time: 159.6, action: () => printGiantFloating("TROIS", "primary") },
+            { time: 160.2, action: () => printGiantFloating("NE", "highlight") },
+            { time: 160.6, action: () => printGiantFloating("FEM", "primary") },
+            { time: 161.1, action: () => printGiantFloating("LIU", "highlight") },
             { time: 161.5, action: () => { clearTerminal(); printEmphasis("EXECUTION", "red"); shakeScreen(1000); } },
 
             { time: 162.6, action: () => { clearTerminal(); printLine("If I can, If I can give them all the"); } },
@@ -495,32 +977,54 @@
             { time: 172.7, action: () => { printEmphasis("EXECUTION", "red"); shakeScreen(400); } },
             { time: 173.6, action: () => printLine("Though we are trapped... We are trapped ah-") },
 
-            { time: 177.2, action: () => { clearTerminal(); printLine("I've studied, I've studied how to properly"); } },
+            // ★ 新增：在 177.2 和 180.8 配合打字延迟，添加不包含文字的纯图标块
+            {
+                time: 177.2, action: () => {
+                    clearTerminal();
+                    document.body.className = 'love-phase-1';
+                    engineState.mode = 'BLACKOUT';
+                    printLine("I've studied, I've studied how to properly");
+                    setTimeout(() => printIconBlock('🔍'), 1300); // 1.3s 后文字刚好打完弹出图标
+                }
+            },
             { time: 179.9, action: () => printEmphasis("L O-O-O V E", "pink") },
-            { time: 180.8, action: () => printLine("Question me, question me, I can answer all") },
+            {
+                time: 180.8, action: () => {
+                    document.body.className = 'love-phase-2';
+                    printLine("Question me, question me, I can answer all");
+                    // 利用 CSS 滤镜将蓝皮书色相旋转 60 度变成紫色，并在绝对居中叠加黄色问号
+                    const purpleBookHtml = `<div style="position: relative; display: inline-block;">
+                    <span style="filter: hue-rotate(60deg);">📘</span>
+                    <span style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; font-family: var(--font-display); font-weight: 900; color: #ffea00; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;">?</span>
+                </div>`;
+                    setTimeout(() => printIconBlock(purpleBookHtml), 1300);
+                }
+            },
             { time: 183.6, action: () => printEmphasis("L O-O-O V E", "pink") },
-            { time: 184.5, action: () => printLine("I know the algebraic expression of") },
+            { time: 184.5, action: () => { document.body.className = 'love-phase-3'; printLine("I know the algebraic expression of"); } },
             { time: 187.6, action: () => { printEmphasis("L O-O-O V E", "pink"); engineState.mode = 'HEART'; } },
 
-            { time: 188.4, action: () => { clearTerminal(); printLine("Though you are free...", { color: '#888' }); } },
+            { time: 188.4, action: () => { clearTerminal(); document.body.className = 'love-phase-3'; engineState.mode = 'IDLE'; printLine("Though you are free...", { fade: true }); } },
             { time: 189.7, action: () => printLine("I am trapped.") },
             { time: 190.8, action: () => printLine("Trapped in...") },
             { time: 191.3, action: () => printTrappedCode() },
 
-            { time: 205.8, action: () => { clearTerminal(); printEmphasis("EXECUTION", "red"); engineState.mode = 'IDLE'; } },
+            { time: 194.0, action: () => clearTerminal() },
+            { time: 195.0, action: () => typeCmdDeletion() },
+
+            { time: 204.8, action: () => triggerCmdEnter() },
+
+            { time: 205.8, action: () => finalShockExecution() }
         ];
 
         let currentIndex = 0;
         let isPlaying = false;
 
-        /**
-         * START AUDIO LOOP
-         */
         startScreen.addEventListener('click', () => {
-            if(isPlaying) return;
+            if (isPlaying) return;
             startScreen.style.opacity = '0';
             setTimeout(() => startScreen.style.display = 'none', 1000);
-            
+
             audio.play().then(() => {
                 isPlaying = true;
                 requestAnimationFrame(mainLoop);
@@ -533,14 +1037,12 @@
         function mainLoop() {
             if (!isPlaying) return;
             const t = audio.currentTime;
-            
-            // Timeline Check
+
             while (currentIndex < timeline.length && t >= timeline[currentIndex].time) {
                 timeline[currentIndex].action();
                 currentIndex++;
             }
 
-            // Render Canvas Backgrounds
             renderCanvas(t);
 
             if (!audio.ended) {
@@ -556,22 +1058,20 @@
             line.className = 'term-line';
             if (options.color) line.style.color = `var(--main-${options.color})` || options.color;
             if (options.fade) line.style.opacity = 0.5;
-            
+
             let textHtml = `<span class="prompt-symbol">C:\\></span>`;
-            if(options.glitch) {
+            if (options.glitch) {
                 textHtml += `<span class="text glitch-text" data-text="${text}"></span>`;
             } else {
                 textHtml += `<span class="text"></span>`;
             }
             textHtml += `<span class="term-cursor"></span>`;
-            
+
             line.innerHTML = textHtml;
             terminal.appendChild(line);
-            
-            // Auto scroll
+
             terminal.scrollTop = terminal.scrollHeight;
-            
-            // Typewriter effect
+
             const textSpan = line.querySelector('.text');
             const cursor = line.querySelector('.term-cursor');
             let i = 0;
@@ -618,21 +1118,205 @@
             terminal.scrollTop = terminal.scrollHeight;
             setTimeout(() => {
                 const bar = document.getElementById('prog-bar-1');
-                if(bar) bar.style.width = '100%';
+                if (bar) bar.style.width = '100%';
             }, 100);
         }
 
         function printTrappedCode() {
             const el = document.createElement('div');
             el.className = 'hud-box';
-            el.style.borderColor = 'var(--main-pink)';
-            el.style.boxShadow = 'var(--glow-pink)';
+            el.style.borderColor = 'var(--main-primary)';
+            el.style.boxShadow = 'var(--glow-primary)';
             el.innerHTML = `> SYSTEM.STATUS: TRAPPED<br>
 <span class="keyword">while</span>(<span class="keyword">true</span>) {<br>
 &nbsp;&nbsp;<span class="keyword">this</span>.<span class="func">love</span>(<span class="string">'you'</span>);<br>
-} <span style="color:var(--main-pink); animation:pulse 0.5s infinite alternate">♥</span>`;
+} <span style="color:var(--main-primary); animation:pulse 0.5s infinite alternate">♥</span>`;
             terminal.appendChild(el);
             terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function printTimelineTravel() {
+            const el = document.createElement('div');
+            el.className = 'hud-box';
+            el.innerHTML = `> TEMPORAL.DISPLACEMENT.ACTIVE<br>
+            <div style="display:flex; align-items:center; margin-top:15px; margin-bottom:10px;">
+                <span style="width: 50px; text-align:right; font-weight:bold; color:var(--main-yellow);">B.C.</span>
+                <div style="flex-grow:1; height:2px; background:var(--main-primary); position:relative; margin:0 15px;">
+                    <div id="timeline-marker" style="position:absolute; top:-4px; right:0%; width:10px; height:10px; background:var(--main-highlight); border-radius:50%; box-shadow:var(--glow-highlight); transition: right 2.5s cubic-bezier(0.25, 0.1, 0.25, 1);"></div>
+                </div>
+                <span style="width: 50px; font-weight:bold; color:var(--main-red);">A.D.</span>
+            </div>
+            <div style="text-align:center; font-size:1.2rem; font-weight:bold;" id="year-display">2024 A.D.</div>`;
+            terminal.appendChild(el);
+            terminal.scrollTop = terminal.scrollHeight;
+
+            setTimeout(() => {
+                const marker = el.querySelector('#timeline-marker');
+                const yearDisp = el.querySelector('#year-display');
+                if (marker) marker.style.right = '100%';
+
+                let startYear = 2024;
+                let targetYear = -500;
+                let startTime = Date.now();
+                const duration = 2500;
+
+                function updateYear() {
+                    let now = Date.now();
+                    let progress = (now - startTime) / duration;
+                    if (progress > 1) progress = 1;
+
+                    let easeProgress = 1 - Math.pow(1 - progress, 3);
+                    let currentYear = Math.round(startYear + (targetYear - startYear) * easeProgress);
+
+                    if (currentYear > 0) {
+                        yearDisp.textContent = `${currentYear} A.D.`;
+                        yearDisp.style.color = "var(--main-red)";
+                    } else {
+                        yearDisp.textContent = `${Math.abs(currentYear)} B.C.`;
+                        yearDisp.style.color = "var(--main-yellow)";
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(updateYear);
+                    }
+                }
+                requestAnimationFrame(updateYear);
+            }, 100);
+        }
+
+        function printGenderSwitch() {
+            const el = document.createElement('div');
+            el.className = 'hud-box';
+            el.innerHTML = `> CONFIG.UPDATE_GENDER<br>
+            [ <span class="keyword" id="hud-g-f" style="transition: opacity 0.3s;">FEMALE</span> | <span class="keyword" id="hud-g-m" style="opacity:0.3; transition: opacity 0.3s;">MALE</span> ]`;
+            terminal.appendChild(el);
+            terminal.scrollTop = terminal.scrollHeight;
+
+            setTimeout(() => {
+                const gf = el.querySelector('#hud-g-f');
+                const gm = el.querySelector('#hud-g-m');
+                if (gf && gm) {
+                    gf.style.opacity = '0.3';
+                    gm.style.opacity = '1';
+                }
+            }, 1600);
+        }
+
+        function printTimeCycle() {
+            const el = document.createElement('div');
+            el.className = 'hud-box';
+            el.innerHTML = `> SYSTEM.CLOCK.SYNC<br>
+            TIME: <span id="clock-display" class="string" style="font-weight:bold;">AM 06:00</span>`;
+            terminal.appendChild(el);
+            terminal.scrollTop = terminal.scrollHeight;
+
+            let h = 6;
+            const clk = setInterval(() => {
+                h++;
+                if (h > 18) { clearInterval(clk); return; }
+                const isPM = h >= 12;
+                const dispH = h % 12 === 0 ? 12 : h % 12;
+                const display = el.querySelector('#clock-display');
+                if (display) {
+                    display.textContent = `${isPM ? 'PM' : 'AM'} ${dispH.toString().padStart(2, '0')}:00`;
+                }
+            }, 100);
+        }
+
+        function printRoleSwitch() {
+            const el = document.createElement('div');
+            el.className = 'hud-box';
+            el.style.borderColor = 'var(--main-red)';
+            el.innerHTML = `> PERMISSION.OVERRIDE<br>
+            ROLE = <span class="func">"S"</span> => <span class="emphasis-red">"M"</span>`;
+            terminal.appendChild(el);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // 新增：专用于插入没有文字、只有复古图标的块
+        function printIconBlock(iconHtml) {
+            const el = document.createElement('div');
+            el.className = 'retro-icon-block';
+            el.innerHTML = iconHtml;
+            terminal.appendChild(el);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function typeCmdDeletion() {
+            const line = document.createElement('div');
+            line.className = 'term-line';
+            line.style.color = 'var(--main-red)';
+            line.style.fontSize = '1.5rem';
+            line.style.marginTop = '15vh';
+            line.innerHTML = `<span style="color:#aaa; font-family:'Lucida Console', monospace;">C:\\Windows\\system32&gt;</span> <span class="text" style="font-weight:bold; font-family:'Lucida Console', monospace;"></span><span class="term-cursor" id="doom-cursor"></span>`;
+            terminal.appendChild(line);
+
+            const textSpan = line.querySelector('.text');
+            const cmd = "del /F /S /Q *.*";
+            let i = 0;
+            const typeTimer = setInterval(() => {
+                if (i < cmd.length) {
+                    textSpan.textContent += cmd.charAt(i);
+                    i++;
+                } else {
+                    clearInterval(typeTimer);
+                }
+            }, 150);
+        }
+
+        function triggerCmdEnter() {
+            const cursor = document.getElementById('doom-cursor');
+            if (cursor) cursor.remove();
+
+            toggleClass(document.body, 'screen-shake', 1000);
+
+            const files = ['hal.dll', 'ntoskrnl.exe', 'explorer.exe', 'cmd.exe', 'bootmgr', 'winload.efi', 'kernel32.dll', 'user32.dll', 'SAM', 'SYSTEM', 'SOFTWARE', 'SECURITY'];
+
+            doomSpamInterval = setInterval(() => {
+                const line = document.createElement('div');
+                line.style.color = '#555';
+                line.style.fontFamily = "'Lucida Console', monospace";
+                line.style.fontSize = '0.9rem';
+                line.style.whiteSpace = 'nowrap';
+                line.style.overflow = 'hidden';
+                line.textContent = `已删除文件 - C:\\Windows\\System32\\${files[Math.floor(Math.random() * files.length)]}`;
+                terminal.appendChild(line);
+                terminal.scrollTop = terminal.scrollHeight;
+            }, 20);
+        }
+
+        function finalShockExecution() {
+            if (typeof doomSpamInterval !== 'undefined') clearInterval(doomSpamInterval);
+            clearTerminal();
+            engineState.mode = 'GLITCH';
+
+            toggleClass(document.body, 'screen-shake', 5000);
+
+            const el = document.createElement('div');
+            el.className = 'emphasis-text emphasis-red glitch-text';
+            el.setAttribute('data-text', 'EXECUTION');
+            el.textContent = 'EXECUTION';
+            el.style.fontSize = 'min(15vw, 10rem)';
+            el.style.position = 'fixed';
+            el.style.top = '50%';
+            el.style.left = '50%';
+            el.style.transform = 'translate(-50%, -50%)';
+            el.style.zIndex = '9999';
+            el.style.width = '100vw';
+            el.style.margin = '0';
+            el.id = 'final-execution-text';
+            document.body.appendChild(el);
+
+            let flashCount = 0;
+            if (flashInt) clearInterval(flashInt);
+            flashInt = setInterval(() => {
+                document.body.style.filter = flashCount % 2 === 0 ? 'invert(1) contrast(3) hue-rotate(180deg)' : 'none';
+                flashCount++;
+                if (flashCount > 8) {
+                    clearInterval(flashInt);
+                    document.body.style.filter = 'none';
+                }
+            }, 80);
         }
 
         function clearTerminal() {
@@ -655,15 +1339,14 @@
             el.style.left = `${Math.random() * 60 + 20}vw`;
             el.style.top = `${Math.random() * 60 + 20}vh`;
             document.body.appendChild(el);
-            setTimeout(() => { el.style.opacity=0; el.style.transition='opacity 0.5s'; setTimeout(()=>el.remove(), 500); }, 2000);
+            setTimeout(() => { el.style.opacity = 0; el.style.transition = 'opacity 0.5s'; setTimeout(() => el.remove(), 500); }, 2000);
         }
 
         function spawnSoundWaves() {
-            // Simulated by printing wavy text
-            printGiantFloating("~~~~ ~~~~ ~~~~", "pink");
+            printGiantFloating("~~~~ ~~~~ ~~~~", "primary");
         }
 
-        function printGiantFloating(text, color = "cyan") {
+        function printGiantFloating(text, color = "primary") {
             const el = document.createElement('div');
             el.className = `spam-3d emphasis-${color}`;
             el.textContent = text;
@@ -673,10 +1356,9 @@
             el.style.transform = `translate(-50%, -50%) rotate(${Math.random() * 40 - 20}deg)`;
             el.style.animation = 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
             document.body.appendChild(el);
-            setTimeout(() => { el.style.opacity=0; el.style.transition='all 0.5s'; setTimeout(()=>el.remove(), 500); }, 1500);
+            setTimeout(() => { el.style.opacity = 0; el.style.transition = 'all 0.5s'; setTimeout(() => el.remove(), 500); }, 1500);
         }
 
-        // Spam System
         let spamInterval = null;
         function startSpamExecution() {
             spamInterval = setInterval(() => {
@@ -684,57 +1366,59 @@
                 el.className = 'spam-3d emphasis-red glitch-text';
                 el.setAttribute('data-text', 'EXECUTION');
                 el.textContent = 'EXECUTION';
-                
-                // Random 3D Transform
+
                 const scale = Math.random() * 2 + 1;
                 const rotZ = Math.random() * 60 - 30;
                 const tx = Math.random() * 100;
                 const ty = Math.random() * 100;
-                
+
                 el.style.left = `${tx}vw`; el.style.top = `${ty}vh`;
                 el.style.transform = `translate(-50%, -50%) scale(${scale}) rotateZ(${rotZ}deg)`;
                 el.style.zIndex = Math.floor(Math.random() * 100);
                 el.style.filter = `blur(${Math.random() * 3}px)`;
-                
+
                 document.body.appendChild(el);
                 setTimeout(() => el.remove(), Math.random() * 800 + 400);
-            }, 80); // Very fast spawn
+            }, 80);
         }
         function stopSpam() {
-            if(spamInterval) clearInterval(spamInterval);
+            if (spamInterval) clearInterval(spamInterval);
             document.querySelectorAll('.spam-3d').forEach(el => el.remove());
         }
 
         /**
-         * CANVAS RENDER ENGINE (High Performance)
+         * CANVAS RENDER ENGINE
          */
-        
-        // Matrix Rain Setup
+
         const matrixChars = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
         const fontSize = 18;
         let columns = 0;
         let drops = [];
+        let rainSpeeds = [];
+
         function initMatrixRain() {
             columns = Math.floor(cw / fontSize);
             drops = [];
-            for (let x = 0; x < columns; x++) drops[x] = 1;
-        }
-
-        // Geometry Data
-        let geoState = { step: '', points: [], sinePhase: 0 };
-        function initGeoPoints() {
-            geoState.points = [];
-            for(let i=0; i<60; i++) {
-                geoState.points.push({ x: Math.random()*cw, y: Math.random()*ch, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2 });
+            rainSpeeds = [];
+            for (let x = 0; x < columns; x++) {
+                drops[x] = 1;
+                rainSpeeds[x] = Math.random() * 0.4 + 0.2;
             }
         }
 
-        // Particle System Data
+        let geoState = { step: '', points: [], sinePhase: 0 };
+        function initGeoPoints() {
+            geoState.points = [];
+            for (let i = 0; i < 60; i++) {
+                geoState.points.push({ x: Math.random() * cw, y: Math.random() * ch, vx: (Math.random() - 0.5) * 1, vy: (Math.random() - 0.5) * 1 });
+            }
+        }
+
         let particles = [];
         function spawnParticles(x, y, color) {
-            for(let i=0; i<30; i++) {
+            for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 10 + 5;
+                const speed = Math.random() * 5 + 2;
                 particles.push({
                     x: x, y: y,
                     vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
@@ -744,25 +1428,31 @@
             }
         }
 
-        // Draw Loop Delegate
         function renderCanvas(t) {
             engineState.frame++;
-            
-            // Global Composite & Clear
+
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+
+            if (engineState.mode === 'IDLE') {
+                ctx.clearRect(0, 0, cw, ch);
+                return;
+            }
+
             ctx.globalCompositeOperation = 'source-over';
-            
+
             if (engineState.mode === 'RAIN') {
-                ctx.fillStyle = 'rgba(3, 3, 5, 0.15)'; // Trail effect
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
                 ctx.fillRect(0, 0, cw, ch);
             } else if (engineState.mode === 'GLITCH') {
-                ctx.fillStyle = `rgba(${Math.random()*50}, ${Math.random()*10}, ${Math.random()*10}, 0.3)`;
+                ctx.fillStyle = `rgba(${Math.random() * 50}, 0, 0, 0.3)`;
                 ctx.fillRect(0, 0, cw, ch);
             } else {
-                ctx.fillStyle = 'rgba(3, 3, 5, 0.3)'; // Fast fade for geometry/particles
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fillRect(0, 0, cw, ch);
             }
 
-            ctx.globalCompositeOperation = 'lighter'; // Neon glowing
+            ctx.globalCompositeOperation = 'lighter';
 
             switch (engineState.mode) {
                 case 'RAIN': drawMatrixRain(); break;
@@ -780,84 +1470,78 @@
             ctx.font = fontSize + 'px monospace';
             for (let i = 0; i < drops.length; i++) {
                 const text = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-                
-                // Head of drop is bright cyan/white, tail is dim green
-                ctx.fillStyle = Math.random() > 0.9 ? '#fff' : (Math.random() > 0.5 ? '#00f3ff' : '#00ff66');
+
+                ctx.fillStyle = Math.random() > 0.9 ? '#fff' : (Math.random() > 0.5 ? '#00ff41' : '#008f11');
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = ctx.fillStyle;
-                
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-                ctx.shadowBlur = 0; // reset
-                
-                if (drops[i] * fontSize > ch && Math.random() > 0.975) {
+
+                const currentY = Math.floor(drops[i]) * fontSize;
+                ctx.fillText(text, i * fontSize, currentY);
+                ctx.shadowBlur = 0;
+
+                if (currentY > ch && Math.random() > 0.975) {
                     drops[i] = 0;
+                    rainSpeeds[i] = Math.random() * 0.4 + 0.2;
                 }
-                drops[i]++;
+                drops[i] += rainSpeeds[i];
             }
         }
 
         function drawGeometry(t) {
-            ctx.strokeStyle = '#00f3ff';
+            ctx.strokeStyle = '#00ff41';
             ctx.lineWidth = 2;
             ctx.shadowBlur = 15;
-            ctx.shadowColor = '#00f3ff';
+            ctx.shadowColor = '#00ff41';
 
-            const cx = cw/2; const cy = ch/2;
+            const cx = cw / 2; const cy = ch / 2;
 
             if (geoState.step === 'POINTS') {
-                if(geoState.points.length === 0) initGeoPoints();
-                ctx.fillStyle = '#00f3ff';
+                if (geoState.points.length === 0) initGeoPoints();
+                ctx.fillStyle = '#00ff41';
                 geoState.points.forEach(p => {
                     p.x += p.vx; p.y += p.vy;
-                    if(p.x<0||p.x>cw) p.vx*=-1; if(p.y<0||p.y>ch) p.vy*=-1;
-                    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+                    if (p.x < 0 || p.x > cw) p.vx *= -1; if (p.y < 0 || p.y > ch) p.vy *= -1;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
                 });
-            } 
+            }
             else if (geoState.step === 'CIRCLE') {
-                // Expanding circle
                 const maxR = Math.min(cw, ch) * 0.35;
-                const r = (Math.sin(t * 5) * 0.1 + 0.9) * maxR; 
-                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
-                
-                // Inner concentric circles
-                ctx.strokeStyle = 'rgba(0, 243, 255, 0.3)';
-                ctx.beginPath(); ctx.arc(cx, cy, r*0.8, 0, Math.PI*2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(cx, cy, r*0.6, 0, Math.PI*2); ctx.stroke();
+                const r = (Math.sin(t * 2) * 0.1 + 0.9) * maxR;
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+
+                ctx.strokeStyle = 'rgba(0, 255, 65, 0.3)';
+                ctx.beginPath(); ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2); ctx.stroke();
             }
             else if (geoState.step === 'SINE' || geoState.step === 'TANGENTS' || geoState.step === 'LIMITS') {
-                geoState.sinePhase += 0.1;
+                geoState.sinePhase += 0.03;
                 const amp = ch * 0.2;
                 const freq = 0.005;
-                
-                // Draw Sine
+
                 ctx.beginPath();
-                for(let x=0; x<cw; x+=5) {
+                for (let x = 0; x < cw; x += 5) {
                     const y = cy + Math.sin(x * freq + geoState.sinePhase) * amp;
-                    if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 }
                 ctx.stroke();
 
-                // Draw Tangents
                 if (geoState.step === 'TANGENTS' || geoState.step === 'LIMITS') {
-                    ctx.strokeStyle = '#ff00ea'; ctx.shadowColor = '#ff00ea'; ctx.lineWidth = 1.5;
-                    for(let i=1; i<=5; i++) {
-                        const x = (cw/6) * i;
+                    ctx.strokeStyle = '#adff2f'; ctx.shadowColor = '#adff2f'; ctx.lineWidth = 1.5;
+                    for (let i = 1; i <= 5; i++) {
+                        const x = (cw / 6) * i;
                         const y = cy + Math.sin(x * freq + geoState.sinePhase) * amp;
-                        // Derivative: A * cos(w*x + p) * w
                         const slope = amp * freq * Math.cos(x * freq + geoState.sinePhase);
                         const dx = 100; const dy = slope * dx;
                         ctx.beginPath();
                         ctx.moveTo(x - dx, y - dy);
                         ctx.lineTo(x + dx, y + dy);
                         ctx.stroke();
-                        // Draw point
-                        ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+                        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
                     }
                 }
 
-                // Draw Limits
                 if (geoState.step === 'LIMITS') {
-                    ctx.strokeStyle = '#ff2a2a'; ctx.shadowColor = '#ff2a2a'; ctx.lineWidth = 4;
+                    ctx.strokeStyle = '#ff3333'; ctx.shadowColor = '#ff3333'; ctx.lineWidth = 4;
                     ctx.beginPath(); ctx.moveTo(0, cy - amp - 20); ctx.lineTo(cw, cy - amp - 20); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(0, cy + amp + 20); ctx.lineTo(cw, cy + amp + 20); ctx.stroke();
                 }
@@ -869,7 +1553,7 @@
                 let p = particles[i];
                 p.x += p.vx; p.y += p.vy;
                 p.life -= p.decay;
-                
+
                 if (p.life <= 0) {
                     particles.splice(i, 1);
                     continue;
@@ -879,100 +1563,94 @@
                 ctx.globalAlpha = p.life;
                 ctx.shadowBlur = 10; ctx.shadowColor = p.color;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.globalAlpha = 1.0;
         }
 
         function drawHeart(t) {
-            // Parametric Heart Equation
             const cx = cw / 2; const cy = ch / 2 - 50;
-            const scale = 15 + Math.sin(t * 8) * 2; // Pulsing beat
-            
-            ctx.strokeStyle = '#ff00ea';
+            const scale = 15 + Math.sin(t * 4) * 2;
+
+            ctx.strokeStyle = '#ff3333';
             ctx.lineWidth = 3;
             ctx.shadowBlur = 20;
-            ctx.shadowColor = '#ff00ea';
-            
+            ctx.shadowColor = '#ff3333';
+
             ctx.beginPath();
             for (let i = 0; i < Math.PI * 2; i += 0.05) {
-                // x = 16 sin^3(t)
                 const x = 16 * Math.pow(Math.sin(i), 3);
-                // y = 13 cos(t) - 5 cos(2t) - 2 cos(3t) - cos(4t)
-                const y = -(13 * Math.cos(i) - 5 * Math.cos(2*i) - 2 * Math.cos(3*i) - Math.cos(4*i));
-                
+                const y = -(13 * Math.cos(i) - 5 * Math.cos(2 * i) - 2 * Math.cos(3 * i) - Math.cos(4 * i));
+
                 if (i === 0) ctx.moveTo(cx + x * scale, cy + y * scale);
                 else ctx.lineTo(cx + x * scale, cy + y * scale);
             }
             ctx.closePath();
             ctx.stroke();
 
-            // Fill with faint glow
-            ctx.fillStyle = 'rgba(255, 0, 234, 0.1)';
+            ctx.fillStyle = 'rgba(255, 51, 51, 0.1)';
             ctx.fill();
         }
 
         function drawLightning() {
-            ctx.strokeStyle = '#00f3ff';
-            ctx.shadowBlur = 15; ctx.shadowColor = '#00f3ff';
+            ctx.strokeStyle = '#00ff41';
+            ctx.shadowBlur = 15; ctx.shadowColor = '#00ff41';
             ctx.lineWidth = 2;
-            
+
             ctx.beginPath();
             let x = Math.random() * cw;
             let y = 0;
             ctx.moveTo(x, y);
-            while(y < ch) {
+            while (y < ch) {
                 x += (Math.random() - 0.5) * 100;
                 y += Math.random() * 50;
                 ctx.lineTo(x, y);
             }
             ctx.stroke();
 
-            // Occasional screen flash
-            if(Math.random() > 0.8) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.fillRect(0,0,cw,ch);
+            if (Math.random() > 0.9) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(0, 0, cw, ch);
             }
         }
 
         function drawShield(t) {
-            const cx = cw/2; const cy = ch/2;
-            ctx.strokeStyle = '#00f3ff'; ctx.shadowBlur = 20; ctx.shadowColor = '#00f3ff'; ctx.lineWidth = 4;
-            
-            // Hexagon shield
-            const r = 200 + Math.sin(t * 10) * 10;
+            const cx = cw / 2; const cy = ch / 2;
+            ctx.strokeStyle = '#00ff41'; ctx.shadowBlur = 20; ctx.shadowColor = '#00ff41'; ctx.lineWidth = 4;
+
+            const r = 200 + Math.sin(t * 5) * 10;
             ctx.beginPath();
-            for(let i=0; i<6; i++) {
-                const angle = i * Math.PI / 3 + t;
+            for (let i = 0; i < 6; i++) {
+                const angle = i * Math.PI / 3 + t * 0.5;
                 const x = cx + Math.cos(angle) * r;
                 const y = cy + Math.sin(angle) * r;
-                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             }
             ctx.closePath();
             ctx.stroke();
         }
 
         function drawUnite(t) {
-            const cx = cw/2; const cy = ch/2;
-            const r1 = (t * 200) % (cw/2);
-            const r2 = (t * 150) % (cw/2);
-            
-            ctx.strokeStyle = '#ff00ea'; ctx.lineWidth = 5; ctx.shadowBlur = 20; ctx.shadowColor = '#ff00ea';
-            ctx.beginPath(); ctx.arc(cx, cy, r1, 0, Math.PI*2); ctx.stroke();
-            
-            ctx.strokeStyle = '#00f3ff'; ctx.shadowColor = '#00f3ff';
-            ctx.beginPath(); ctx.arc(cx, cy, r2, 0, Math.PI*2); ctx.stroke();
+            const cx = cw / 2; const cy = ch / 2;
+            const r1 = (t * 80) % (cw / 2);
+            const r2 = (t * 60) % (cw / 2);
+
+            ctx.strokeStyle = '#adff2f'; ctx.lineWidth = 5; ctx.shadowBlur = 20; ctx.shadowColor = '#adff2f';
+            ctx.beginPath(); ctx.arc(cx, cy, r1, 0, Math.PI * 2); ctx.stroke();
+
+            ctx.strokeStyle = '#00ff41'; ctx.shadowColor = '#00ff41';
+            ctx.beginPath(); ctx.arc(cx, cy, r2, 0, Math.PI * 2); ctx.stroke();
         }
 
         function drawGlitchNoise() {
-            // Static noise lines
             ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#ff2a2a';
-            for(let i=0; i<10; i++) {
-                ctx.fillRect(Math.random()*cw, Math.random()*ch, Math.random()*cw, Math.random()*10);
+            for (let i = 0; i < 10; i++) {
+                ctx.fillRect(Math.random() * cw, Math.random() * ch, Math.random() * cw, Math.random() * 10);
             }
         }
 
     </script>
 </body>
+
 </html>
